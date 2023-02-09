@@ -11,11 +11,12 @@ import xml.etree.ElementTree as ET
 import requests
 
 git_repo = "https://raw.githubusercontent.com/h3xp/RickDangerousUpdate/main"
-home_dir = "/home/pi/.update_tool"
-ini_file = "/home/pi/.update_tool/update_tool.ini"
-png_file = "/home/pi/RetroPie/retropiemenu/icons/update_tool.png"
+user_home_dir = os.path.expanduser('~') # get home path of user
+script_home_dir = f"{ user_home_dir }/.update_tool"
+ini_file = f"{ user_home_dir }/.update_tool/update_tool.ini"
+png_file = f"{ user_home_dir }/RetroPie/retropiemenu/icons/update_tool.png"
 gamelist_file = "/opt/retropie/configs/all/emulationstation/gamelists/retropie/gamelist.xml"
-sh_file = "/home/pi/RetroPie/retropiemenu/update_tool.sh"
+sh_file = f"{ user_home_dir }/RetroPie/retropiemenu/update_tool.sh"
 updates_script = "/opt/retropie/configs/all/emulationstation/scripts/system-select/update_notification.sh"
 mega_folder = ""
 
@@ -124,8 +125,8 @@ def merge_xml(src_xml: str, dest_xml: str):
 def uninstall():
     file_time = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
 
-    if os.path.exists(home_dir):
-        shutil.rmtree(home_dir)
+    if os.path.exists(script_home_dir):
+        shutil.rmtree(script_home_dir)
 
     if os.path.exists(sh_file):
         os.remove(sh_file)
@@ -182,8 +183,8 @@ def install(overwrite=True):
     if overwrite == True:
         uninstall()
     
-    if os.path.exists(home_dir) == False:
-        os.mkdir(home_dir)
+    if os.path.exists(script_home_dir) == False:
+        os.mkdir(script_home_dir)
     if os.path.exists(ini_file) == False:
         os.mknod(ini_file)
 
@@ -204,11 +205,11 @@ def install(overwrite=True):
     #download the gamelist.xml
     runshell("curl {}/gamelist.xml -o {}/gamelist.xml".format(git_repo, tmp_dir))
     #download the update.py
-    runshell("curl {}/update.py -o {}/update.py".format(git_repo, home_dir))
+    runshell("curl {}/update.py -o {}/update.py".format(git_repo, script_home_dir))
     #download the notification.py
-    runshell("curl {}/notification.py -o {}/notification.py".format(git_repo, home_dir))
+    runshell("curl {}/notification.py -o {}/notification.py".format(git_repo, script_home_dir))
     #dowload pngview
-    runshell("curl {}/pngview -o {}/pngview".format(git_repo, home_dir))
+    runshell("curl {}/pngview -o {}/pngview".format(git_repo, script_home_dir))
 
     if os.path.exists("{}/update_tool.ini".format(tmp_dir)) == True:
         new_config.read("{}/update_tool.ini".format(tmp_dir))
@@ -242,7 +243,7 @@ def install(overwrite=True):
 
     #write script
     print("Writing bash script...")
-    with open("/home/pi/RetroPie/retropiemenu/{}".format("update_tool.sh"), "w") as shellfile:
+    with open(f"{ user_home_dir }/RetroPie/retropiemenu/update_tool.sh", "w") as shellfile:
         shellfile.write("#!/bin/bash\n")
         #shellfile.write("source <(grep = {} | sed 's/ *= */=/g') 2>/dev/null\n".format(ini_file))
         shellfile.write("source <(sed '/INSTALLED_UPDATES/q' {} | grep = | sed 's/ *= */=/g') 2>/dev/null\n".format(ini_file))

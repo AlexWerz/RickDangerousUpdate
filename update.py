@@ -18,7 +18,7 @@ import requests
 import logging
 import urllib.request
 from Crypto.Cipher import AES
-from Crypto.Util import Counter
+from Crypto.Util import Counterscript_home_dir
 from mega.crypto import base64_to_a32, base64_url_decode, decrypt_attr, decrypt_key, a32_to_str, get_chunks, str_to_a32
 from mega.errors import RequestError
 import xml.etree.ElementTree as ET
@@ -32,6 +32,12 @@ from packaging import version
 import copy
 import traceback
 import time
+
+# Config
+user_home_dir = os.path.expanduser('~') # get home path of user
+ini_file = f"{user_home_dir}/.update_tool/update_tool.ini"
+git_repo = "https://raw.githubusercontent.com/h3xp/RickDangerousUpdate"
+opt_retropie = "/opt/retropie"
 
 d = Dialog()
 d.autowidgetsize = True
@@ -63,16 +69,16 @@ def safe_write_check(file_path: str, file_time: str):
 
 
 def get_git_repo():
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
         git_repo = get_config_value("CONFIG_ITEMS", "git_repo")
         if git_repo is not None:
             return git_repo
 
-    return "https://raw.githubusercontent.com/h3xp/RickDangerousUpdate"
+    return f"{ git_repo }"
 
 
 def get_git_branch():
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
         git_branch = get_config_value("CONFIG_ITEMS", "git_branch")
         if git_branch is not None:
             return git_branch
@@ -82,7 +88,7 @@ def get_git_branch():
     
 def get_overlay_systems():
     retval = [[], []]
-    path = "/opt/retropie/configs"
+    path = f"{ opt_retropie }/configs"
 
     for file in os.listdir(path):
         if file == "all":
@@ -113,11 +119,11 @@ def get_overlay_systems():
 
 
 def get_config_section(section: str):
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
-        if os.path.isfile("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
+        if os.path.isfile(ini_file):
             config_file = configparser.ConfigParser()
             config_file.optionxform = str
-            config_file.read("/home/pi/.update_tool/update_tool.ini")
+            config_file.read(ini_file)
             if config_file.has_section(section):
                 return config_file.items(section)
 
@@ -125,11 +131,11 @@ def get_config_section(section: str):
 
 
 def get_config_value(section: str, key: str):
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
-        if os.path.isfile("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
+        if os.path.isfile(ini_file):
             config_file = configparser.ConfigParser()
             config_file.optionxform = str
-            config_file.read("/home/pi/.update_tool/update_tool.ini")
+            config_file.read(ini_file)
             if config_file.has_option(section, key):
                 return config_file[section][key]
 
@@ -137,17 +143,17 @@ def get_config_value(section: str, key: str):
 
 
 def set_config_value(section: str, key: str, value: str):
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
-        if os.path.isfile("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
+        if os.path.isfile(ini_file):
             config_file = configparser.ConfigParser()
             config_file.optionxform = str
-            config_file.read("/home/pi/.update_tool/update_tool.ini")
+            config_file.read(ini_file)
             if config_file.has_section(section) == False:
                 config_file.add_section(section)
 
             config_file[section][key] = value
 
-            with open("/home/pi/.update_tool/update_tool.ini", 'w') as configfile:
+            with open(ini_file, 'w') as configfile:
                 config_file.write(configfile)
 
             return True
@@ -157,7 +163,7 @@ def set_config_value(section: str, key: str, value: str):
 
 def restart_es():
     runcmd("sudo reboot")
-    #runcmd("touch /tmp/es-restart && pkill -f \"/opt/retropie/supplementary/.*/emulationstation([^.]|$)\"")
+    #runcmd(f"touch /tmp/es-restart && pkill -f \"{ opt_retropie }/supplementary/.*/emulationstation([^.]|$)\"")
     #runcmd("sudo systemctl restart autologin@tty1.service")
     return
 
@@ -171,7 +177,7 @@ def cronjob_exists(unique):
 
 
 def autostart_exists(unique):
-    output = runcmd("cat /opt/retropie/configs/all/autostart.sh")
+    output = runcmd(f"cat { opt_retropie }/configs/all/autostart.sh")
     if unique in output:
         return True
     else:
@@ -179,7 +185,7 @@ def autostart_exists(unique):
 
 
 def toggle_countofficialonly():
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
         if get_config_value('CONFIG_ITEMS', 'count_official_only') == "True":
             toggle = "False"
             toggle_msg = "disabled"
@@ -196,7 +202,7 @@ def toggle_countofficialonly():
 
 
 def toggle_autoclean():
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
         if get_config_value('CONFIG_ITEMS', 'auto_clean') == "True":
             toggle = "False"
             toggle_msg = "disabled"
@@ -214,13 +220,13 @@ def toggle_autoclean():
 
 def remove_notification():
     runcmd("crontab -l | sed '/.update_tool/d' | crontab")
-    runcmd("sed '/update_tool/d' /opt/retropie/configs/all/autostart.sh >/tmp/ut.$$ ; mv /tmp/ut.$$ /opt/retropie/configs/all/autostart.sh")
+    runcmd(f"sed '/update_tool/d' { opt_retropie }/configs/all/autostart.sh >/tmp/ut.$$ ; mv /tmp/ut.$$ { opt_retropie }/configs/all/autostart.sh")
 
     return
 
 
 def select_notification():
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
         previous_method = get_config_value('CONFIG_ITEMS', 'display_notification')
 
         code, tag = d.radiolist("Choose which notification method you want to use",
@@ -233,7 +239,7 @@ def select_notification():
         if code == d.OK:
             remove_notification()
             if tag in ["Theme", "Tool"]:
-                runcmd("( echo 'update_tool notify' ; cat /opt/retropie/configs/all/autostart.sh ) >/tmp/ut.$$ ; mv /tmp/ut.$$ /opt/retropie/configs/all/autostart.sh")
+                runcmd(f"( echo 'update_tool notify' ; cat { opt_retropie }/configs/all/autostart.sh ) >/tmp/ut.$$ ; mv /tmp/ut.$$ { opt_retropie }/configs/all/autostart.sh")
             set_config_value('CONFIG_ITEMS', 'display_notification', tag)
             d.msgbox('Display Notification ' + tag + '!\n\n Reboot to apply changes')
                         
@@ -242,17 +248,17 @@ def select_notification():
         #        if previous_method == "Theme":
         #            runcmd("crontab -l | sed '/.update_tool/d' | crontab")
         #        if previous_method == "Tool":
-        #            runcmd("sed '/update_tool/d' /opt/retropie/configs/all/autostart.sh >/tmp/ut.$$ ; mv /tmp/ut.$$ /opt/retropie/configs/all/autostart.sh")
+        #            runcmd(f"sed '/update_tool/d' { opt_retropie }/configs/all/autostart.sh >/tmp/ut.$$ ; mv /tmp/ut.$$ { opt_retropie }/configs/all/autostart.sh")
 
         #    if tag == "Theme":
         #        if not cronjob_exists("update_tool"):
         #            runcmd("( crontab -l 2>/dev/null ; echo '@reboot python3 /home/pi/.update_tool/notification.py' ) | crontab")
         #        if previous_method == "Tool":
-        #            runcmd("sed '/update_tool/d' /opt/retropie/configs/all/autostart.sh >/tmp/ut.$$ ; mv /tmp/ut.$$ /opt/retropie/configs/all/autostart.sh")
+        #            runcmd(f"sed '/update_tool/d' { opt_retropie }/configs/all/autostart.sh >/tmp/ut.$$ ; mv /tmp/ut.$$ { opt_retropie }/configs/all/autostart.sh")
 
         #    if tag == "Tool":
         #        if not autostart_exists("update_tool"):
-        #            runcmd("( echo 'update_tool notify' ; cat /opt/retropie/configs/all/autostart.sh ) >/tmp/ut.$$ ; mv /tmp/ut.$$ /opt/retropie/configs/all/autostart.sh")
+        #            runcmd(f"( echo 'update_tool notify' ; cat { opt_retropie }/configs/all/autostart.sh ) >/tmp/ut.$$ ; mv /tmp/ut.$$ { opt_retropie }/configs/all/autostart.sh")
         #        if previous_method == "Theme":
         #            runcmd("crontab -l | sed '/.update_tool/d' | crontab")
 
@@ -264,11 +270,11 @@ def select_notification():
  
 
 def is_update_applied(key: str, modified_timestamp: str):
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini") == False:
+    if os.path.exists(ini_file) == False:
         return False
 
     config = configparser.ConfigParser()
-    config.read("/home/pi/.update_tool/update_tool.ini")
+    config.read(ini_file)
     if config.has_option("INSTALLED_UPDATES", key):
         return config["INSTALLED_UPDATES"][key] == str(modified_timestamp)
 
@@ -667,9 +673,9 @@ def update_available():
         latest_tag = resp.json().get('tag_name').replace("v","")
     except requests.exceptions.RequestException as e:
         return "no connection"
-    if os.path.isfile("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.isfile(ini_file):
         config = configparser.ConfigParser()
-        config.read("/home/pi/.update_tool/update_tool.ini")
+        config.read(ini_file)
         git_branch = config["CONFIG_ITEMS"]["git_branch"]
         if git_branch == "main":
             current_tag = config["CONFIG_ITEMS"]["tool_ver"].replace("v","")
@@ -685,9 +691,9 @@ def update_available():
 def check_update():
     title = ""
 
-    if os.path.isfile("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.isfile(ini_file):
         config = configparser.ConfigParser()
-        config.read("/home/pi/.update_tool/update_tool.ini")
+        config.read(ini_file)
         title = "Version " + config["CONFIG_ITEMS"]["tool_ver"] + " (latest)"
     else:
         title = "not installed"
@@ -741,13 +747,14 @@ def do_handheld(mode):
     else:
         configzip = "handheld_configs_reset.zip"
     localpath = Path("/", "tmp")
-    urllib.request.urlretrieve("https://raw.githubusercontent.com/h3xp/RickDangerousUpdate/main/configs/" + configzip,
+    repo = get_git_repo
+    urllib.request.urlretrieve(f"{ repo }/main/configs/" + configzip,
                                localpath / configzip)
     f = os.path.join(localpath, configzip)
     if os.path.isfile(f):
         with zipfile.ZipFile(f, 'r') as zip_ref:
             zip_ref.extractall(localpath / "handheld_configs")
-        copydir(localpath / "handheld_configs/", "/opt/retropie/configs/")
+        copydir(localpath / "handheld_configs/", f"{ opt_retropie }/configs/")
         try:
             shutil.rmtree(localpath / "handheld_configs")
         except OSError as e:
@@ -771,7 +778,7 @@ def log_this(log_file: str, log_text: str):
 
 
 def get_system_extentions(system: str):
-    systems_config = "/opt/retropie/configs/all/emulationstation/es_systems.cfg"
+    systems_config = f"{ opt_retropie }/configs/all/emulationstation/es_systems.cfg"
 
     extensions = []
     src_tree = ET.parse(systems_config)
@@ -791,8 +798,8 @@ def get_system_extentions(system: str):
 
 def get_all_systems_from_cfg():
     do_not_scan = ["kodi"]
-    systems_config = "/opt/retropie/configs/all/emulationstation/es_systems.cfg"
-    rom_dir = "/home/pi/RetroPie/roms"
+    systems_config = f"{ opt_retropie }/configs/all/emulationstation/es_systems.cfg"
+    rom_dir = f"{user_home_dir}/RetroPie/roms"
     systems = []
 
     src_tree = ET.parse(systems_config)
@@ -816,7 +823,7 @@ def get_all_systems_from_cfg():
 
 def get_all_systems_from_dirs():
     do_not_scan = ["kodi"]
-    rom_dir = "/home/pi/RetroPie/roms"
+    rom_dir = f"{user_home_dir}/RetroPie/roms"
     systems = []
     link = {}
 
@@ -1143,7 +1150,7 @@ def remove_duplicate_gamelist_entries(src_xml: str, log_file: str):
 
 def process_gamelist(system: str, gamelist_roms_dir: str, log_file: str, backup_dir: str, del_roms=False, del_art=False, del_snaps=False, del_m3u=False, clean=False, auto_clean=False):
     file_time = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    rom_dir = "/home/pi/RetroPie/roms"
+    rom_dir = f"{user_home_dir}/RetroPie/roms"
     art_dir = "boxart"
     snaps_dir = "snaps"
     m3u_dir = ".data"
@@ -1368,17 +1375,19 @@ def do_process_gamelists(systems: list, del_roms=False, del_art=False, del_snaps
     cls()
     file_time = datetime.datetime.utcnow()
     process_type = "clean" if clean == True else "check"
-    gamelist_roms_dir = "/home/pi/RetroPie/roms"
+    gamelist_roms_dir = f"{user_home_dir}/RetroPie/roms"
     check_gamelist_roms_dir = get_config_value("CONFIG_ITEMS", "check_gamelists_roms_dir")
     if check_gamelist_roms_dir is not None:
         gamelist_roms_dir = check_gamelist_roms_dir
 
-    if not os.path.exists("/home/pi/.update_tool/gamelist_logs"):
-        os.mkdir("/home/pi/.update_tool/gamelist_logs")
+    if not os.path.exists(f"{user_home_dir}/.update_tool/gamelist_logs"):
+        os.mkdir(f"{user_home_dir}/.update_tool/gamelist_logs")
 
     if log_file == "":
-        log_file = "/home/pi/.update_tool/gamelist_logs/{}_gamelists-{}.log".format(process_type, file_time.strftime("%Y%m%d-%H%M%S"))
-    backup_dir = "/home/pi/.update_tool/gamelist_logs/{}".format(os.path.splitext(os.path.basename(log_file))[0])
+        sfile_time = file_time.strftime("%Y%m%d-%H%M%S")
+        log_file = f"{user_home_dir}/.update_tool/gamelist_logs/{process_type}_gamelists-{sfile_time}.log"
+    path = os.path.splitext(os.path.basename(log_file))[0]
+    backup_dir = f"{user_home_dir}/.update_tool/gamelist_logs/{path}"
     if clean == True:
         if not os.path.exists(backup_dir):
             os.mkdir(backup_dir)
@@ -1421,14 +1430,14 @@ def gamelists_orphan_dialog(systems, clean: bool):
     if clean == True:
         menu_text = ("Clean Orphaned Files"
                     "\n\nThis will clean your gamelist.xml files and optionally remove orphaned roms, artwork,  video snapshots, and multiple disk (m3u) files according to your choices below."
-                    "\n\nThe results of this procedure can be viewed in the \"/home/pi/.update_tool/gamelist_logs\" folder, it will be called \"clean_gamelists-[date]-[time].log\"."
+                    f"\n\nThe results of this procedure can be viewed in the \"{ user_home_dir }/.update_tool/gamelist_logs\" folder, it will be called \"clean_gamelists-[date]-[time].log\"."
                     "\n\nRemoving orphaned files will DELETE them by moving them to a folder that corresponds to the gamelist log called \"clean_gamelists-[date]-[time]\"."
                     "\nYou can reverse this operation using the \"Restore Clean Game List Logs\" function and selecting the appropriate log file."
                     "\n\nRemove orphaned:")
     else:
         menu_text = ("Check Orphaned Files"
                     "\n\nThis will check your gamelist.xml files and optionally check for orphaned roms, artwork, video snapshots, and multiple disk (m3u) files according to your choices below."
-                    "\n\nThe results of this procedure can be viewed in the \"/home/pi/.update_tool/gamelist_logs\" folder, it will be called \"check_gamelists-[date]-[time].log\""
+                    f"\n\nThe results of this procedure can be viewed in the \"{ user_home_dir }/.update_tool/gamelist_logs\" folder, it will be called \"check_gamelists-[date]-[time].log\""
                     "\n\nCheck orphaned:")
 
     code, tags = d.checklist(text=menu_text, 
@@ -1495,11 +1504,11 @@ def gamelist_genres_dialog(system: str, game: dict, elem: ET.Element):
 
         genre_collection = genres[tag]
         lines = []
-        cfg_file = os.path.join("/opt/retropie/configs/all/emulationstation/collections", genre_collection)
+        cfg_file = os.path.join(f"{ opt_retropie }/configs/all/emulationstation/collections", genre_collection)
         with open(cfg_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
             if game["path"] not in lines:
-                system_roms = "/home/pi/RetroPie/roms/{}/".format(system)
+                system_roms = f"{user_home_dir}/RetroPie/roms/{system}/"
                 lines.append(game["path"].replace("./", system_roms) + "\n")
                 lines.sort()
         
@@ -1539,7 +1548,7 @@ def do_gamelist_genres(systems: list):
     check_for_genres()
     continue_processing = True
     file_time = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    rom_dir = "/home/pi/RetroPie/roms"
+    rom_dir = f"{user_home_dir}/RetroPie/roms"
     fields = ["name", "path", "desc", "genre"]
 
     for system in systems:
@@ -1586,7 +1595,7 @@ def do_gamelist_genres(systems: list):
 def count_games(system: str, games: list, official_only = True, additional_columns = []):
     count = 0    
     games_list = []
-    system_dir = os.path.join("/home/pi/RetroPie/roms", system)
+    system_dir = os.path.join(f"{user_home_dir}/RetroPie/roms", system)
     src_xml = os.path.join(system_dir, "gamelist.xml")
     #games = []
 
@@ -1669,7 +1678,7 @@ def gamelist_counts_dialog(systems: list, all_systems=False):
                         "Because you have chosen to count all systems:\n"
                         "\t-a compiled list af all games, by system, is located in /home/pi/.update_tool/games_list.txt for your reference.\n"
                         "\t-a copy of this count is located in /home/pi/.update_tool/counts.txt for your reference.\n\n" + display_text)
-        with open("/home/pi/.update_tool/counts.txt", 'w', encoding='utf-8') as f:
+        with open(f"{user_home_dir}/.update_tool/counts.txt", 'w', encoding='utf-8') as f:
             f.write(systems_text)
 
         for game in games:
@@ -1680,7 +1689,7 @@ def gamelist_counts_dialog(systems: list, all_systems=False):
                 line_text += game_text + "\t"
             games_text += line_text[:-1] + "\n"
             #games_text += "{}\t{}\t{}\t{}\t{}\t{}\n".format(game[0], game[1], game[2], game[3], game[4], game[5])
-        with open("/home/pi/.update_tool/games_list.txt", 'w', encoding='utf-8') as f:
+        with open(f"{user_home_dir}/.update_tool/games_list.txt", 'w', encoding='utf-8') as f:
             f.write(games_text)
 
     d.msgbox(display_text)
@@ -1707,8 +1716,8 @@ def remove_system_genres(system: str, cfg_file: str):
 
 
 def system_genre_realignment(system: str):
-    collections_dir = "/opt/retropie/configs/all/emulationstation/collections"
-    rom_dir = "/home/pi/RetroPie/roms"
+    collections_dir = f"{ opt_retropie }/configs/all/emulationstation/collections"
+    rom_dir = f"{user_home_dir}/RetroPie/roms"
     genre_roms = {}
 
     for key, val in genres.items():
@@ -1765,7 +1774,7 @@ def system_genre_realignment(system: str):
 
 def do_genre_realignment(systems: list, overwrite=False):
     check_for_genres()
-    collections_dir = "/opt/retropie/configs/all/emulationstation/collections"
+    collections_dir = f"{ opt_retropie }/configs/all/emulationstation/collections"
     if overwrite == True:
         for key, val in genres.items():
             collection_cfg = os.path.join(collections_dir, val)
@@ -1783,7 +1792,7 @@ def do_genre_realignment(systems: list, overwrite=False):
 def sort_gamelist(system: str):
     games_list = {}
     games = []
-    system_dir = os.path.join("/home/pi/RetroPie/roms", system)
+    system_dir = os.path.join(f"{user_home_dir}/RetroPie/roms", system)
     src_xml = os.path.join(system_dir, "gamelist.xml")
 
     src_tree = ET.parse(src_xml)
@@ -1832,7 +1841,7 @@ def do_sort_gamelists(systems: list):
 
 
 def gamelists_dialog(function: str):
-    rom_dir = "/home/pi/RetroPie/roms"
+    rom_dir = f"{user_home_dir}/RetroPie/roms"
     art_dir = "boxart"
     snaps_dir = "snaps"
 
@@ -1906,7 +1915,7 @@ def gamelists_dialog(function: str):
 
 def do_remove_logs(logs: list):
     for log in logs:
-        log_file = os.path.join("/home/pi/.update_tool/gamelist_logs", log)
+        log_file = os.path.join(f"{user_home_dir}/.update_tool/gamelist_logs", log)
         log_dir = os.path.splitext(log_file)[0]
         if os.path.exists(log_file):
             if os.path.isfile(log_file):
@@ -1921,11 +1930,11 @@ def do_remove_logs(logs: list):
 
 def do_restore_logs(logs: list):
     for log in logs:
-        log_file = os.path.join("/home/pi/.update_tool/gamelist_logs", log)
+        log_file = os.path.join(f"{user_home_dir}/.update_tool/gamelist_logs", log)
         log_dir = os.path.splitext(log_file)[0]
         if os.path.exists(log_dir):
             if os.path.isdir(log_dir):
-                copydir(log_dir, "/home/pi/RetroPie/roms")
+                copydir(log_dir, f"{user_home_dir}/RetroPie/roms")
     d.msgbox('Done!')
 
     return
@@ -1942,7 +1951,7 @@ def get_total_path_size(dir: str):
 
 
 def get_log_size(log: str):
-    log_file = os.path.join("/home/pi/.update_tool/gamelist_logs", log)
+    log_file = os.path.join(f"{user_home_dir}/.update_tool/gamelist_logs", log)
     log_dir = os.path.splitext(log_file)[0]
 
     if os.path.exists(log_file):
@@ -1963,7 +1972,7 @@ def logs_dialog(function: str, title: str, patterns: list, multi=True):
     total_size = 0
 
     for pattern in patterns:
-        for log in Path("/home/pi/.update_tool/gamelist_logs").glob(pattern):
+        for log in Path(f"{user_home_dir}/.update_tool/gamelist_logs").glob(pattern):
             if os.path.exists(log):
                 if os.path.isfile(log):
                     logs.append(os.path.basename(log))
@@ -1979,7 +1988,8 @@ def logs_dialog(function: str, title: str, patterns: list, multi=True):
         total_size += log_size
         menu_choices.append((menu_choice + " ({})".format(convert_filesize(str(log_size))), "", False))
 
-    dlg_text = "Log Files in \"/home/pi/.update_tool/gamelist_logs\" ({}):".format(convert_filesize(str(total_size)))
+    sSize = convert_filesize(str(total_size))
+    dlg_text = "Log Files in \"{ user_home_dir }/home/pi/.update_tool/gamelist_logs\" ({ sSize }):"
     if multi == True:
         code, tags = d.checklist(text=dlg_text,
                                 choices=menu_choices,
@@ -2024,7 +2034,7 @@ def logs_dialog(function: str, title: str, patterns: list, multi=True):
 
 
 def do_clean_emulators_cfg():
-    emulator_cfg = "/opt/retropie/configs/all/emulators.cfg"
+    emulator_cfg = f"{ opt_retropie }/configs/all/emulators.cfg"
     items = {}
     lines_out = ""
     game_counter = 0
@@ -2132,10 +2142,10 @@ def auto_clean_gamelists(installed_updates: list, manual=False):
 
         file_time = datetime.datetime.utcnow()
 
-        if not os.path.exists("/home/pi/.update_tool/gamelist_logs"):
-            os.mkdir("/home/pi/.update_tool/gamelist_logs")
+        if not os.path.exists(f"{user_home_dir}/.update_tool/gamelist_logs"):
+            os.mkdir(f"{user_home_dir}/.update_tool/gamelist_logs")
 
-        log_file = "/home/pi/.update_tool/gamelist_logs/auto_clean_gamelists-{}.log".format(file_time.strftime("%Y%m%d-%H%M%S"))
+        log_file = f"{user_home_dir}/.update_tool/gamelist_logs/auto_clean_gamelists-{}.log".format(file_time.strftime("%Y%m%d-%H%M%S"))
         log_this(log_file, "AUTO CLEANING {}UPDATES INSTALLED:".format(type))
         for installed_update in installed_updates:
             log_this(log_file, "-{}".format(installed_update))
@@ -2150,7 +2160,7 @@ def auto_clean_gamelists(installed_updates: list, manual=False):
 def process_manual_updates(path: str, updates: list, delete=False, auto_clean=False):
     start_time = datetime.datetime.utcnow()
     extracted = Path("/", "tmp", "extracted")
-    log_file = "/home/pi/.update_tool/process_manual_updates.log"
+    log_file = f"{user_home_dir}/.update_tool/process_manual_updates.log"
 
     installed_updates = []
     for update in updates:
@@ -2232,7 +2242,7 @@ def manual_updates_dialog(init_path: str, delete: bool):
 
 
 def get_default_update_dir():
-    if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
+    if os.path.exists(ini_file):
         update_dir = get_config_value("CONFIG_ITEMS", "update_dir")
         if update_dir is not None and os.path.exists(update_dir):
             return update_dir
@@ -2397,9 +2407,9 @@ def check_drive():
     if os.environ.get('RickDangerousUpdateTests') is not None:
        return "https://mega.nz/folder/tQpwhD7a#WA1sJBgOKJzQ4ybG4ozezQ"
     else:
-        if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
+        if os.path.exists(ini_file):
             config = configparser.ConfigParser()
-            config.read("/home/pi/.update_tool/update_tool.ini")
+            config.read(ini_file)
             if config.has_option("CONFIG_ITEMS", "mega_dir"):
                 return config["CONFIG_ITEMS"]["mega_dir"]
 
@@ -2553,7 +2563,6 @@ def official_improvements_dialog(update_dir=None, delete=False, available_update
 
 def update_config(extracted: str):
     tmp_config = Path(extracted, "home", "pi", ".update_tool", "update_tool.ini")
-    ini_file = "/home/pi/.update_tool/update_tool.ini"
     if not os.path.exists(tmp_config):
         return
     if not os.path.exists(ini_file):
@@ -2673,7 +2682,7 @@ def clean_comments(line: str):
 
 
 def do_system_overlay(system: str, enable_disable = "Enable"):
-    path = "/opt/retropie/configs"
+    path = f"{ opt_retropie }/configs"
 
     system = os.path.join(path, system)
     if os.path.isdir(system):
@@ -2818,12 +2827,13 @@ def restore_retroarch_dialog():
 
 def do_retroarch_configs():
     localpath = Path("/", "tmp")
-    urllib.request.urlretrieve("https://raw.githubusercontent.com/h3xp/RickDangerousUpdate/main/configs/retroarch_configs.zip", localpath / "retroarch_configs.zip")
+    repo = get_git_repo
+    urllib.request.urlretrieve(f"{ repo }/main/configs/retroarch_configs.zip", localpath / "retroarch_configs.zip")
     f = os.path.join(localpath, "retroarch_configs.zip")
     if os.path.isfile(f):
         with zipfile.ZipFile(f, 'r') as zip_ref:
             zip_ref.extractall(localpath / "retroarch_configs")
-        copydir(localpath / "retroarch_configs/", "/opt/retropie/configs/")
+        copydir(localpath / "retroarch_configs/", f"{ opt_retropie }/configs/")
         try:
             shutil.rmtree(localpath / "retroarch_configs")
         except OSError as e:
@@ -2847,14 +2857,15 @@ def reset_controls_dialog():
 
 def do_emulationstation_configs():
     localpath = Path("/", "tmp")
+    repo = get_git_repo
     urllib.request.urlretrieve(
-        "https://raw.githubusercontent.com/h3xp/RickDangerousUpdate/main/configs/emulationstation_configs.zip",
+        f"{ repo }/main/configs/emulationstation_configs.zip",
         localpath / "emulationstation_configs.zip")
     f = os.path.join(localpath, "emulationstation_configs.zip")
     if os.path.isfile(f):
         with zipfile.ZipFile(f, 'r') as zip_ref:
             zip_ref.extractall(localpath / "emulationstation_configs")
-        copydir(localpath / "emulationstation_configs/", "/home/pi/.emulationstation/")
+        copydir(localpath / "emulationstation_configs/", f"{user_home_dir}/.emulationstation/")
         try:
             shutil.rmtree(localpath / "emulationstation_configs")
         except OSError as e:
@@ -3029,10 +3040,11 @@ if __name__ == "__main__":
         nothing = None
     except:
         title_text = ""
-        if os.path.exists("/home/pi/.update_tool/update_tool.ini"):
-            datetime.datetime.utcnow()
-            log_this("/home/pi/.update_tool/exception.log", "*****{}\n{}".format(datetime.datetime.utcnow(), traceback.format_exc()))
-            log_this("/home/pi/.update_tool/exception.log", "\n\n")
+        if os.path.exists(ini_file):
+            now=datetime.datetime.utcnow()
+            trace=traceback.format_exc()
+            log_this(f"{user_home_dir}/.update_tool/exception.log", "*****{ now }\n{ trace }")
+            log_this(f"{user_home_dir}/.update_tool/exception.log", "\n\n")
             title_text = "A copy of this exception is logged in /home/pi/.update_tool/exception.log for your records\n\n"
 
         d.msgbox(title_text + traceback.format_exc(), title="Something has gone really bad...")
