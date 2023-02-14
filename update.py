@@ -34,10 +34,12 @@ import traceback
 import time
 
 # Config
+chroot = ""
 user_home_dir = os.path.expanduser('~') # get home path of user
 ini_file = f"{user_home_dir}/.update_tool/update_tool.ini"
-git_repo = "https://raw.githubusercontent.com/h3xp/RickDangerousUpdate"
-opt_retropie = "/opt/retropie"
+default_git_repo = "https://raw.githubusercontent.com/h3xp/RickDangerousUpdate"
+default_git_branch = "main"
+opt_retropie = f"{ chroot }/opt/retropie"
 
 d = Dialog()
 d.autowidgetsize = True
@@ -69,21 +71,19 @@ def safe_write_check(file_path: str, file_time: str):
 
 
 def get_git_repo():
-    if os.path.exists(ini_file):
-        git_repo = get_config_value("CONFIG_ITEMS", "git_repo")
-        if git_repo is not None:
-            return git_repo
-
-    return f"{ git_repo }"
+    git_repo = get_config_value("CONFIG_ITEMS", "git_repo")
+    if git_repo is not None:
+        return git_repo
+    else:
+        return f"{ default_git_repo }"
 
 
 def get_git_branch():
-    if os.path.exists(ini_file):
-        git_branch = get_config_value("CONFIG_ITEMS", "git_branch")
-        if git_branch is not None:
-            return git_branch
-
-    return "main"
+    git_branch = get_config_value("CONFIG_ITEMS", "git_branch")
+    if git_branch is not None:
+        return git_branch
+    else:
+        return f"{ default_git_branch }"
     
     
 def get_overlay_systems():
@@ -543,13 +543,13 @@ def permissions_dialog():
 
 
 def check_wrong_permissions():
-    output = runcmd("find /home/pi/RetroPie/roms -user root")
+    output = runcmd(f"find { user_home_dir }/RetroPie/roms -user root")
 #    output = runcmd('ls -la /home/pi/RetroPie/ | grep roms | cut -d \' \' -f3,4')
 #    if output.rstrip() != 'pi pi':
     if len(output) > 0:
         permissions_dialog()
     else:
-        output = runcmd('ls -la /home/pi/.emulationstation/gamelists/retropie | grep " gamelist.xml$" | cut -d \' \' -f3,4')
+        output = runcmd(f'ls -la { user_home_dir }/.emulationstation/gamelists/retropie | grep " gamelist.xml$" | cut -d \' \' -f3,4')
         if "pi" not in output.rstrip():
             permissions_dialog()
 
@@ -673,20 +673,15 @@ def update_available():
         latest_tag = resp.json().get('tag_name').replace("v","")
     except requests.exceptions.RequestException as e:
         return "no connection"
-    if os.path.isfile(ini_file):
-        config = configparser.ConfigParser()
-        config.read(ini_file)
-        git_branch = config["CONFIG_ITEMS"]["git_branch"]
-        if git_branch == "main":
-            current_tag = config["CONFIG_ITEMS"]["tool_ver"].replace("v","")
-            if version.parse(latest_tag) > version.parse(current_tag):
-                return "update available"
-            else:
-                return "no update available"
+    git_branch = get_git_branch()
+    if git_branch == "main":
+        current_tag = get_config_value("CONFIG_ITEMS", "tool_ver").replace("v","")
+        if version.parse(latest_tag) > version.parse(current_tag):
+            return "update available"
         else:
-            return "alt branch"
-            
-    return False
+            return "no update available"
+    else:
+        return "alt branch"
 
 def check_update():
     title = ""
@@ -1676,8 +1671,8 @@ def gamelist_counts_dialog(systems: list, all_systems=False):
                         "To match your EmulationStation game count add 2 (1 for Kodi, 1 for Steam) to the total.\n"
                         "This utility is currently set to count " + display_count + ".\n"
                         "Because you have chosen to count all systems:\n"
-                        "\t-a compiled list af all games, by system, is located in /home/pi/.update_tool/games_list.txt for your reference.\n"
-                        "\t-a copy of this count is located in /home/pi/.update_tool/counts.txt for your reference.\n\n" + display_text)
+                        f"\t-a compiled list af all games, by system, is located in { user_home_dir }/.update_tool/games_list.txt for your reference.\n"
+                        f"\t-a copy of this count is located in { user_home_dir }/.update_tool/counts.txt for your reference.\n\n" + display_text)
         with open(f"{user_home_dir}/.update_tool/counts.txt", 'w', encoding='utf-8') as f:
             f.write(systems_text)
 
@@ -1989,7 +1984,7 @@ def logs_dialog(function: str, title: str, patterns: list, multi=True):
         menu_choices.append((menu_choice + " ({})".format(convert_filesize(str(log_size))), "", False))
 
     sSize = convert_filesize(str(total_size))
-    dlg_text = "Log Files in \"{ user_home_dir }/home/pi/.update_tool/gamelist_logs\" ({ sSize }):"
+    dlg_text = f'Log Files in "{ user_home_dir }/.update_tool/gamelist_logs" ({ sSize }):'
     if multi == True:
         code, tags = d.checklist(text=dlg_text,
                                 choices=menu_choices,
@@ -3045,6 +3040,6 @@ if __name__ == "__main__":
             trace=traceback.format_exc()
             log_this(f"{user_home_dir}/.update_tool/exception.log", "*****{ now }\n{ trace }")
             log_this(f"{user_home_dir}/.update_tool/exception.log", "\n\n")
-            title_text = "A copy of this exception is logged in /home/pi/.update_tool/exception.log for your records\n\n"
+            title_text = f"A copy of this exception is logged in { user_home_dir }/.update_tool/exception.log for your records\n\n"
 
         d.msgbox(title_text + traceback.format_exc(), title="Something has gone really bad...")
