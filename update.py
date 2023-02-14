@@ -675,11 +675,15 @@ def update_available():
         return "no connection"
     git_branch = get_git_branch()
     if git_branch == "main":
-        current_tag = get_config_value("CONFIG_ITEMS", "tool_ver").replace("v","")
-        if version.parse(latest_tag) > version.parse(current_tag):
-            return "update available"
+        current_tag = get_config_value("CONFIG_ITEMS", "tool_ver")
+        if current_tag != None:
+            current_tag = current_tag.replace("v","")
+            if version.parse(latest_tag) > version.parse(current_tag):
+                return "update available"
+            else:
+                return "no update available"
         else:
-            return "no update available"
+            return False
     else:
         return "alt branch"
 
