@@ -2140,7 +2140,8 @@ def auto_clean_gamelists(installed_updates: list, manual=False):
         if not os.path.exists(f"{user_home_dir}/.update_tool/gamelist_logs"):
             os.mkdir(f"{user_home_dir}/.update_tool/gamelist_logs")
 
-        log_file = f"{user_home_dir}/.update_tool/gamelist_logs/auto_clean_gamelists-{}.log".format(file_time.strftime("%Y%m%d-%H%M%S"))
+        sFile_time = file_time.strftime("%Y%m%d-%H%M%S")
+        log_file = f"{user_home_dir}/.update_tool/gamelist_logs/auto_clean_gamelists-{sFile_time}.log"
         log_this(log_file, "AUTO CLEANING {}UPDATES INSTALLED:".format(type))
         for installed_update in installed_updates:
             log_this(log_file, "-{}".format(installed_update))
