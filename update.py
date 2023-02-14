@@ -18,7 +18,7 @@ import requests
 import logging
 import urllib.request
 from Crypto.Cipher import AES
-from Crypto.Util import Counterscript_home_dir
+from Crypto.Util import Counter
 from mega.crypto import base64_to_a32, base64_url_decode, decrypt_attr, decrypt_key, a32_to_str, get_chunks, str_to_a32
 from mega.errors import RequestError
 import xml.etree.ElementTree as ET
