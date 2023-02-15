@@ -11,7 +11,7 @@ if [ "$EUID" -eq 0 ]
   then echo "Do not run this script as root. Do not use sudo."
   exit
 fi
-if [[ "$1" -eq "local "]]; then
+if [ "$1" -eq "local "]; then
   sudo apt-get -y install python3-pip && pip3 install -r requirements.txt && python3 update.py $2
 else
   sudo apt-get -y install python3-pip && pip3 install -r <(curl "https://raw.githubusercontent.com/h3xp/RickDangerousUpdate/main/requirements.txt" -s -N) && python3 <(curl "https://raw.githubusercontent.com/h3xp/RickDangerousUpdate/main/update.py" -s -N) $1
