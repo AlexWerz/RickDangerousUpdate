@@ -21,6 +21,6 @@ sudo apt-get -y install python3-pip && pip3 install -r requirements.txt
 #sudo -u pi python3 update.py [MEGA-LINK]
 
 # Mount folders to RaspberryPi
-# /home/pi
+# /home/pi/RetroPie
 # /opt/retropie
 # /etc/emulationstation
